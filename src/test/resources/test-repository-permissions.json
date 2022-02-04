@@ -1,0 +1,37 @@
+[
+    {
+        "repositoryPatterns": "prj1.*",
+        "groups": [
+            {
+                "privilege": "admin",
+                "pattern": "group1"
+            },
+            {
+                "privilege": "write",
+                "pattern": "group2"
+            }
+        ]
+    },
+    {
+        "repositoryPatterns": "prj2.*",
+        "groups": [
+            {
+                "privilege": "read",
+                "pattern": "group1"
+            }
+        ]
+    },
+    {
+        "repositoryPatterns": "prj2.prod.*",
+        "groups": [
+            {
+                "privilege": "write",
+                "pattern": "group1"
+            },
+            {
+                "privilege": "write",
+                "pattern": "group2"
+            }
+        ]
+    }
+]

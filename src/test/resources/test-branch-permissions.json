@@ -1,0 +1,24 @@
+[
+    {
+        "repositoryPatterns": "*",
+        "branchPattern": "master",
+        "groups": [
+            {
+                "writeAccess": true,
+                "mergePR": true,
+                "pattern": "*1"
+            }
+        ]
+    },
+    {
+        "repositoryPatterns": "*",
+        "branchPattern": "support/*",
+        "users": [
+            {
+                "writeAccess": true,
+                "mergePR": false,
+                "uuid": "qwerty"
+            }
+        ]
+    }
+]

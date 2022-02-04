@@ -1,0 +1,25 @@
+[
+    {
+        "repositoryPatterns": "prj2.prod*",
+        "groups": [
+            {
+                "privilege": "write",
+                "pattern": "group1"
+            },
+            {
+                "privilege": "write",
+                "pattern": "group2"
+            }
+        ]
+    },
+    {
+        "repositoryPatterns": "*-deploy",
+        "inherited": "false",
+        "groups": [
+            {
+                "privilege": "read",
+                "pattern": "group*,!group2"
+            }
+        ]
+    }
+]
