@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.github.nfalco79.bitbucket.reposettings.util.SelectorUtils;
 
 /**
@@ -28,7 +29,10 @@ import com.github.nfalco79.bitbucket.reposettings.util.SelectorUtils;
 public class BranchPermissionRule {
 
     private String repositoryPatterns;
-    private String branchPattern;
+    @JsonAlias("branchPattern")
+    private String branchPatterns;
+    private Integer minApprovals;
+    private Integer successBuilds;
     private List<BranchPermissionUserRule> users = new LinkedList<>();
     private List<BranchPermissionGroupRule> groups = new LinkedList<>();
 
@@ -48,12 +52,12 @@ public class BranchPermissionRule {
         this.users = users;
     }
 
-    public String getBranchPattern() {
-        return branchPattern;
+    public String getBranchPatterns() {
+        return branchPatterns;
     }
 
-    public void setBranchPattern(String branchPattern) {
-        this.branchPattern = branchPattern;
+    public void setBranchPatterns(String branchPatterns) {
+        this.branchPatterns = branchPatterns;
     }
 
     public String getRepositoryPatterns() {
@@ -70,6 +74,22 @@ public class BranchPermissionRule {
 
     @Override
     public String toString() {
-        return repositoryPatterns + " -> " + branchPattern;
+        return repositoryPatterns + " -> " + branchPatterns;
+    }
+
+    public Integer getMinApprovals() {
+        return minApprovals;
+    }
+
+    public void setMinApprovals(Integer minApprovals) {
+        this.minApprovals = minApprovals;
+    }
+
+    public Integer getSuccessBuilds() {
+        return successBuilds;
+    }
+
+    public void setSuccessBuilds(Integer successBuilds) {
+        this.successBuilds = successBuilds;
     }
 }

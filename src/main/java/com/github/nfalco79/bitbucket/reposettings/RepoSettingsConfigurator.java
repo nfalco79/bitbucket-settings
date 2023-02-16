@@ -23,7 +23,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.logging.Level;
@@ -38,27 +37,24 @@ import com.github.nfalco79.bitbucket.client.Credentials.CredentialsBuilder;
 import com.github.nfalco79.bitbucket.client.model.BitbucketObject;
 import com.github.nfalco79.bitbucket.client.model.BranchRestriction;
 import com.github.nfalco79.bitbucket.client.model.BranchRestriction.Builder;
+import com.github.nfalco79.bitbucket.client.model.GroupInfo;
+import com.github.nfalco79.bitbucket.client.model.Permission;
+import com.github.nfalco79.bitbucket.client.model.UserInfo;
+import com.github.nfalco79.bitbucket.client.model.UserPermission;
+import com.github.nfalco79.bitbucket.client.model.Webhook;
+import com.github.nfalco79.bitbucket.reposettings.filter.UpdatePermission;
+import com.github.nfalco79.bitbucket.reposettings.filter.UpdatePermissionIfNotExists;
 import com.github.nfalco79.bitbucket.reposettings.rule.AccessRule;
 import com.github.nfalco79.bitbucket.reposettings.rule.BranchPermissionRule;
 import com.github.nfalco79.bitbucket.reposettings.rule.RepositoryAccessRule;
 import com.github.nfalco79.bitbucket.reposettings.util.RulesReader;
 import com.github.nfalco79.bitbucket.reposettings.util.SelectorUtils;
 import com.github.nfalco79.bitbucket.reposettings.util.WebhookUtil;
-import com.github.nfalco79.bitbucket.client.model.GroupInfo;
-import com.github.nfalco79.bitbucket.client.model.Permission;
-import com.github.nfalco79.bitbucket.client.model.UserInfo;
-import com.github.nfalco79.bitbucket.client.model.UserPermission;
-import com.github.nfalco79.bitbucket.client.model.Webhook;
 
 /**
  * Configurator for every supported settings of any BB repository.
  */
 public class RepoSettingsConfigurator {
-
-    @FunctionalInterface
-    public interface UpdatePermission {
-        void apply(BranchRestriction p) throws IOException, ClientException;
-    }
 
     private RepoSettingsInfo configuration;
     private BitbucketCloudClient client;
@@ -325,93 +321,56 @@ public class RepoSettingsConfigurator {
         List<BranchRestriction> branchPermissions = client.getBranchRestrictions(workspace, repo);
 
         for (BranchPermissionRule branchRule : branchRules) {
-            String branchPattern = branchRule.getBranchPattern();
+            for (String branchPattern : branchRule.getBranchPatterns().split(",")) {
+                UpdatePermission ifNotExists = new UpdatePermissionIfNotExists(branchPermissions, branchPattern, toApply);
 
-            UpdatePermission ifNotExists = newPermission -> {
-                List<BranchRestriction> currentMatchingPermissions = branchPermissions.stream() //
-                        .filter(r -> r.getPattern().equals(branchPattern)) //
-                        .filter(r -> r.getKind().equals(newPermission.getKind())) //
-                        .collect(Collectors.toList());
-
-                BranchRestriction otherPermission = toApply.stream() //
-                        .filter(apply -> Objects.nonNull(apply.getId())) //
-                        .filter(apply -> Objects.equals(newPermission.getId(), apply.getId())) //
-                        .findFirst() //
-                        .orElseGet(() -> toApply.stream() //
-                                .filter(apply -> Objects.equals(newPermission.getPattern(), apply.getPattern())) //
-                                .filter(apply -> Objects.equals(newPermission.getKind(), apply.getKind())) //
-                                .findFirst() //
-                                .orElse(null));
-
-                if (!currentMatchingPermissions.isEmpty()) {
-                    // if a branch restriction already exists than update it
-                    BranchRestriction match = currentMatchingPermissions.stream() //
-                            .filter(r -> !r.getUsers().containsAll(newPermission.getUsers()) || !r.getGroups().containsAll(newPermission.getGroups())) //
-                            .findFirst() //
-                            .orElse(null);
-                    // if there is already a defined branch restriction but with different configuration, have to be update
-                    if (match != null) {
-                        newPermission.setId(match.getId());
-                        // if update was already planned to add than merge also these changes
-                        if (otherPermission == null) {
-                            toApply.add(newPermission);
-                        } else {
-                            Builder.merge(newPermission, otherPermission);
-                        }
-                    }
-                } else {
-                    if (otherPermission == null) {
-                        toApply.add(newPermission);
-                    } else {
-                        Builder.merge(newPermission, otherPermission);
-                    }
-                }
-            };
-
-            // Write access
-            Set<UserInfo> users = filterUsers.apply(granted) //
-                    .filter(grantedUser -> branchRule.getUsers().stream() //
+                // Write access
+                Set<UserInfo> users = filterUsers.apply(granted) //
+                        .filter(grantedUser -> branchRule.getUsers().stream() //
+                                    .filter(rule -> rule.isWriteAccess()) //
+                                    .anyMatch(rule -> rule.accept(grantedUser.getUUID()))) //
+                        .collect(Collectors.toSet());
+                Set<GroupInfo> groups = filterGroups.apply(granted) //
+                        .filter(grantedGroup -> branchRule.getGroups().stream() //
                                 .filter(rule -> rule.isWriteAccess()) //
+                                .anyMatch(rule -> rule.accept(grantedGroup.getName()))) //
+                        .collect(Collectors.toSet());
+                ifNotExists.apply(Builder.newPushPermission(branchPattern, users, groups));
+
+                // Merge via pull request
+                users = filterUsers.apply(granted) //
+                        .filter(grantedUser -> branchRule.getUsers().stream() //
                                 .anyMatch(rule -> rule.accept(grantedUser.getUUID()))) //
-                    .collect(Collectors.toSet());
-            Set<GroupInfo> groups = filterGroups.apply(granted) //
-                    .filter(grantedGroup -> branchRule.getGroups().stream() //
-                            .filter(rule -> rule.isWriteAccess()) //
-                            .anyMatch(rule -> rule.accept(grantedGroup.getName()))) //
-                    .collect(Collectors.toSet());
-            ifNotExists.apply(Builder.newPushPermission(branchPattern, users, groups));
+                        .collect(Collectors.toSet());
+                groups = filterGroups.apply(granted) //
+                        .filter(grantedGroup -> branchRule.getGroups().stream() //
+                                .anyMatch(rule -> rule.accept(grantedGroup.getName()))) //
+                        .collect(Collectors.toSet());
+                ifNotExists.apply(Builder.newMergePermission(branchPattern, users, groups));
 
-            // Merge via pull request
-            users = filterUsers.apply(granted) //
-                    .filter(grantedUser -> branchRule.getUsers().stream() //
-                            .anyMatch(rule -> rule.accept(grantedUser.getUUID()))) //
-                    .collect(Collectors.toSet());
-            groups = filterGroups.apply(granted) //
-                    .filter(grantedGroup -> branchRule.getGroups().stream() //
-                            .anyMatch(rule -> rule.accept(grantedGroup.getName()))) //
-                    .collect(Collectors.toSet());
-            ifNotExists.apply(Builder.newMergePermission(branchPattern, users, groups));
+                // Deleting this branch is not allowed
+                ifNotExists.apply(Builder.newDeletePermission(branchPattern));
 
-            // Deleting this branch is not allowed
-            ifNotExists.apply(Builder.newDeletePermission(branchPattern));
+                // Rewriting branch history is not allowed
+                ifNotExists.apply(Builder.newForcePushPermission(branchPattern));
 
-            // Rewriting branch history is not allowed
-            ifNotExists.apply(Builder.newForcePushPermission(branchPattern));
+                // Check the last commit for at least N successful build and no failed builds
+                int successBuilds = branchRule.getSuccessBuilds() != null ? branchRule.getSuccessBuilds() : configuration.getSuccessBuilds();
+                ifNotExists.apply(Builder.newSucessBuildsPermission(branchPattern, successBuilds));
 
-            // Check the last commit for at least N successful build and no failed builds
-            ifNotExists.apply(Builder.newSucessBuildsPermission(branchPattern, configuration.getSuccessBuilds()));
+                // Check for at least N approvals
+                int minApprovals = branchRule.getMinApprovals() != null ? branchRule.getMinApprovals() : configuration.getMinApprovals();
+                ifNotExists.apply(Builder.newMinApprovalsPermission(branchPattern, minApprovals));
 
-            // Check for at least N approvals
-            ifNotExists.apply(Builder.newMinApprovalsPermission(branchPattern, configuration.getApprovals()));
+                //  Check that no changes are requested
+                ifNotExists.apply(Builder.newRequireNoChanges(branchPattern));
 
-            //  Check that no changes are requested
-            ifNotExists.apply(Builder.newRequireNoChanges(branchPattern));
+                // Reset requested changes when the source branch is modified
+                ifNotExists.apply(Builder.newResetPROnChange(branchPattern));
 
-            // Reset requested changes when the source branch is modified
-            ifNotExists.apply(Builder.newResetPROnChange(branchPattern));
-
-            // Check for unresolved pull request tasks
-            ifNotExists.apply(Builder.newRequireTasksCompletion(branchPattern));
+                // Check for unresolved pull request tasks
+                ifNotExists.apply(Builder.newRequireTasksCompletion(branchPattern));
+            }
         }
 
         toApply.forEach(p -> {
@@ -436,10 +395,11 @@ public class RepoSettingsConfigurator {
             .map(UserInfo.class::cast);
 
     protected void processWebhook(String repo) throws ClientException {
-        Webhook webhook = WebhookUtil.DEFAULT;
+        Webhook webhook = WebhookUtil.getDefault(configuration.getWebHookHostname());
+        webhook.setUrl(String.format(webhook.getUrl(), configuration.getWebHookHostname()));
+
         List<Webhook> webhooks = client.getWebhooks(workspace, repo, WebhookUtil.JENKINS_WEBHOOKS_NAMES);
         if (webhooks.stream().noneMatch(webhook::equals)) {
-            webhook.setUrl(String.format(webhook.getUrl(), configuration.getWebHookHostname()));
             if (webhooks.size() > 0) {
                 webhook.setUUID(webhooks.get(0).getUUID());
                 client.updateWebhook(workspace, repo, webhook);

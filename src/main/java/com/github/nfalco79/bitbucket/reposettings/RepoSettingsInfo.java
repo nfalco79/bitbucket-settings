@@ -38,7 +38,7 @@ public class RepoSettingsInfo {
     private String accessRules = "/repository-permissions.json";
     private String branchRules = "/branch-permissions.json";
     private int successBuilds = 1;
-    private int approvals = 2;
+    private int minApprovals = 2;
 
     public List<String> getFilter() {
         return filter;
@@ -140,15 +140,15 @@ public class RepoSettingsInfo {
         return successBuilds ;
     }
 
-    public int getApprovals() {
-        return approvals ;
+    public int getMinApprovals() {
+        return minApprovals ;
     }
 
     public void setSuccessBuilds(int successBuilds) {
         this.successBuilds = successBuilds;
     }
 
-    public void setApprovals(int approvals) {
-        this.approvals = approvals;
+    public void setMinApprovals(int minApprovals) {
+        this.minApprovals = minApprovals;
     }
 }
