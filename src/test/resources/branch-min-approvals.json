@@ -1,0 +1,19 @@
+[
+    {
+        "repositoryPatterns": "*",
+        "branchPatterns": "support/*",
+        "minApprovals": 2,
+        "groups": [
+            {
+                "writeAccess": true,
+                "mergePR": true,
+                "pattern": "*1"
+            }
+        ]
+    },
+    {
+        "repositoryPatterns": "prj1*",
+        "branchPatterns": "support/*",
+        "minApprovals": 1
+    }
+]
