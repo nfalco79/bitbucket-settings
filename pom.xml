@@ -6,7 +6,7 @@
         <version>1.0.0-beta1</version>
     </parent>
     <artifactId>bitbucket-repository-settings</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Project to setup repository settings</name>
     <description>Repository automatic setup repositories settings.</description>
@@ -14,7 +14,7 @@
         <connection>scm:git:git@github.com:nfalco79/bitbucket-settings.git</connection>
         <url>https://github.com/nfalco79/bitbucket-settings.git</url>
         <developerConnection>scm:git:git@github.com:nfalco79/bitbucket-settings.git</developerConnection>
-      <tag>1.1.0</tag>
+      <tag>HEAD</tag>
   </scm>
     <properties>
         <java.level>8</java.level>
